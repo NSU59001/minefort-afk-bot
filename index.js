@@ -1,4 +1,26 @@
 const mineflayer = require('mineflayer');
+const https = require('https');
+
+// Apna Discord Webhook URL yahan dalein
+const WEBHOOK_URL = 'YOUR_DISCORD_WEBHOOK_URL_HERE'; 
+
+function sendDiscordAlert(msg) {
+  if (!WEBHOOK_URL || WEBHOOK_URL.includes('YOUR_DISCORD')) return;
+  const data = JSON.stringify({ content: msg });
+  const url = new URL(WEBHOOK_URL);
+  
+  const req = https.request({
+    hostname: url.hostname,
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': data.length,
+    },
+  });
+  req.write(data);
+  req.end();
+}
 
 function createBot() {
   const bot = mineflayer.createBot({
@@ -9,9 +31,9 @@ function createBot() {
   });
 
   bot.on('spawn', () => {
-    console.log('✅ Bot lobby / captcha room me enter ho gaya hai!');
+    console.log('✅ Bot Limbo/Lobby me enter ho gaya hai!');
+    sendDiscordAlert('🤖 **Bot Join Hua:** Limbo/Captcha Room me hai.');
     
-    // Auto jump har 15 seconds me
     setInterval(() => {
       bot.setControlState('jump', true);
       setTimeout(() => bot.setControlState('jump', false), 500);
@@ -19,37 +41,25 @@ function createBot() {
   });
 
   bot.on('message', (jsonMsg) => {
-    const message = jsonMsg.toString();
-    console.log('[CHAT]:', message);
+    const msg = jsonMsg.toString();
+    console.log('[CHAT]:', msg);
 
-    // 1. Agar Chat me '/captcha' aaye toh solve karein
-    if (message.includes('/captcha')) {
-      const match = message.match(/\/captcha\s+([a-zA-Z0-9]+)/);
-      if (match) {
-        const code = match[1];
-        setTimeout(() => {
-          bot.chat(`/captcha ${code}`);
-          console.log(`🤖 Captcha code send kiya: /captcha ${code}`);
-          
-          // Captcha ke 2 second baad main server join karne ki command
-          setTimeout(() => {
-            bot.chat('/join'); // Minefort me server switch / join ke liye
-            bot.chat('/server snapfun'); // Direct server join
-          }, 2000);
-        }, 1000);
-      }
-    }
-
-    // 2. Agar verification success ka message aaye
-    if (message.toLowerCase().includes('success') || message.toLowerCase().includes('verified')) {
+    // Chat me captcha command check karna
+    const match = msg.match(/\/captcha\s+([a-zA-Z0-9]+)/i);
+    if (match) {
+      const code = match[1];
       setTimeout(() => {
-        bot.chat('/join');
+        bot.chat(`/captcha ${code}`);
+        console.log(`🤖 Auto-Sent Captcha: /captcha ${code}`);
+        sendDiscordAlert(`✅ Captcha Auto-Solved: \`/captcha ${code}\``);
       }, 1000);
+    } else if (msg.toLowerCase().includes('captcha') || msg.toLowerCase().includes('please enter')) {
+      sendDiscordAlert(`⚠️ **Captcha Warning:** Chat me captcha maanga gaya hai: \`${msg}\``);
     }
   });
 
   bot.on('end', (reason) => {
-    console.log(`⚠️ Disconnected: ${reason}. Reconnecting in 10s...`);
+    console.log(`⚠️ Disconnected: ${reason}`);
     setTimeout(createBot, 10000);
   });
 
